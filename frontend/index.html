@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Robotics</title>
+</head>
+<body>
+    <h1>Welcome to the Gemini Robotics Web Server!</h1>
+    
+    <div style="margin-bottom:1.5em;">
+        <h3>Image</h3>
+        <div id="placeholder" style="border:1px dashed #ccc; width:640px; height:480px; display:flex;align-items:center;justify-content:center;">
+            <img id="imgPreview" src="" alt="Preview" style="max-width:100%; max-height:100%; display:none;" />
+            <video id="video" autoplay playsinline style="display:none; width:640px; height:480px; background:#000;"></video>
+            <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+            <span id="placeholderText">No image</span>
+        </div>
+
+        <div style="margin-top:0.5em;">
+            <input type="file" id="fileInput" accept="image/*" />
+            <button id="uploadFileBtn">Upload File</button>
+            <button id="openCamBtn">Open Camera</button>
+            <button id="captureBtn" style="display:none;">Capture</button>
+            <button id="closeCamBtn" style="display:none;">Close Camera</button>
+        </div>
+    </div>
+
+    <canvas id="canvasOverlay" style="border:1px solid #999; display:none; position:absolute; cursor:crosshair;"></canvas>
+    <div id="response" style="margin-top:1em;color:green;"></div>
+    
+    <div style="margin-top:1.5em;">
+        <label for="message">Prompt:</label>
+        <textarea id="message" name="message" style="width:640px; height:120px; padding:8px; font-family:monospace;">Point to no more than 10 items in the image. The label returned should be an identifying name for the object detected. The answer should follow the json format: [{"point": [y, x], "label": <label1>}, ...].</textarea>
+        <button id="sendBtn" style="display:block; margin-top:0.5em;">Send to Gemini</button>
+    </div>
+    
+    <div id="results" style="margin-top:1.5em; display:none;">
+        <h3>Detection Results:</h3>
+        <pre id="resultsJson" style="border:1px solid #ccc; padding:1em; background:#f5f5f5; max-width:640px; overflow-x:auto;"></pre>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

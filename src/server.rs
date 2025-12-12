@@ -20,10 +20,10 @@ pub struct DetectionPoint {
 
 #[get("/")]
 async fn index() -> impl Responder {
-    let index_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("index.html");
+    let index_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("frontend/index.html");
     match fs::read_to_string(index_path) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
-        Err(_) => HttpResponse::NotFound().body("404 Not Found: index.html not found"),
+        Err(e) => HttpResponse::NotFound().body(format!("404 Not Found: frontend/index.html not found ({})", e)),
     }
 }
 
@@ -136,7 +136,13 @@ async fn upload(req: HttpRequest, body: web::Bytes) -> impl Responder {
 
 pub async fn run() -> std::io::Result<()> {
     println!("Starting server at http://127.0.0.1:8080");
-    HttpServer::new(|| App::new().service(index).service(send).service(upload))
+    HttpServer::new(|| {
+        App::new()
+            .service(index)
+            .service(send)
+            .service(upload)
+            .service(actix_files::Files::new("/static", "frontend").show_files_listing())
+    })
         .bind(("127.0.0.1", 8080))?
         .run()
         .await
