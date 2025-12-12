@@ -7,5 +7,30 @@
 </head>
 <body>
     <h1>Welcome to the Gemini Robotics Web Server!</h1>
+    <div>
+        <label for="message">Message:</label>
+        <input type="text" id="message" name="message" placeholder="Type a message..." />
+        <button id="sendBtn">Send</button>
+    </div>
+
+    <div id="response" style="margin-top:1em;color:green;"></div>
+
+    <script>
+        document.getElementById('sendBtn').addEventListener('click', async function () {
+            const input = document.getElementById('message');
+            const message = input.value || '';
+            try {
+                const res = await fetch('/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: message
+                });
+                const text = await res.text();
+                document.getElementById('response').textContent = text;
+            } catch (err) {
+                document.getElementById('response').textContent = 'Error sending message';
+            }
+        });
+    </script>
 </body>
 </html>
