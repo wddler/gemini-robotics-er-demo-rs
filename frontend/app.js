@@ -32,6 +32,9 @@ function getImageBase64() {
     return Promise.resolve(null);
 }
 
+let currentImageWidth = 640;
+let currentImageHeight = 480;
+
 // Send to Gemini with image and text
 document.getElementById('sendBtn').addEventListener('click', async function () {
     const prompt = document.getElementById('message').value || '';
@@ -64,7 +67,15 @@ document.getElementById('sendBtn').addEventListener('click', async function () {
         
         // Try to parse and display results
         try {
-            const results = JSON.parse(text);
+            let jsonText = text.trim();
+            if (jsonText.startsWith('```json')) {
+                jsonText = jsonText.slice(7);
+            }
+            if (jsonText.endsWith('```')) {
+                jsonText = jsonText.slice(0, -3);
+            }
+            jsonText = jsonText.trim();
+            const results = JSON.parse(jsonText);
             if (Array.isArray(results)) {
                 resultsJson.textContent = JSON.stringify(results, null, 2);
                 resultsDiv.style.display = '';
@@ -81,9 +92,22 @@ document.getElementById('sendBtn').addEventListener('click', async function () {
 // Draw detection points and labels on overlay canvas
 function drawDetectionPoints(results) {
     const canvasOverlay = document.getElementById('canvasOverlay');
-    const placeholder = document.getElementById('placeholder');
-    const rect = placeholder.getBoundingClientRect();
+    const imgPreview = document.getElementById('imgPreview');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
     
+    let targetElement;
+    if (imgPreview.style.display !== 'none') {
+        targetElement = imgPreview;
+    } else if (video.style.display !== 'none') {
+        targetElement = video;
+    } else if (canvas.style.display !== 'none') {
+        targetElement = canvas;
+    } else {
+        return;
+    }
+    
+    const rect = targetElement.getBoundingClientRect();
     canvasOverlay.width = rect.width;
     canvasOverlay.height = rect.height;
     canvasOverlay.style.display = '';
@@ -93,27 +117,21 @@ function drawDetectionPoints(results) {
     const ctx = canvasOverlay.getContext('2d');
     ctx.clearRect(0, 0, canvasOverlay.width, canvasOverlay.height);
     
-    const canvasWidth = 640;
-    const canvasHeight = 480;
-    const scaleX = canvasOverlay.width / canvasWidth;
-    const scaleY = canvasOverlay.height / canvasHeight;
-    
     results.forEach(item => {
         const [y, x] = item.point;
-        // Points are normalized to 0-1000, convert to pixel coordinates
-        const px = (x / 1000) * canvasWidth * scaleX;
-        const py = (y / 1000) * canvasHeight * scaleY;
+        // Points are normalized to 0-1000
+        const px = (x / 1000) * rect.width;
+        const py = (y / 1000) * rect.height;
         
         // Draw circle
-        ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
+        ctx.fillStyle = '#FF0000';
         ctx.beginPath();
-        ctx.arc(px, py, 8, 0, 2 * Math.PI);
-        ctx.stroke();
+        ctx.arc(px, py, 6, 0, 2 * Math.PI);
+        ctx.fill();
         
         // Draw label
         ctx.fillStyle = '#FF0000';
-        ctx.font = '12px Arial';
+        ctx.font = '24px Arial';
         ctx.fillText(item.label, px + 12, py - 5);
     });
 }
@@ -140,6 +158,10 @@ fileInput.addEventListener('change', () => {
     if (!f) return;
     const url = URL.createObjectURL(f);
     imgPreview.src = url;
+    imgPreview.onload = () => {
+        currentImageWidth = imgPreview.naturalWidth;
+        currentImageHeight = imgPreview.naturalHeight;
+    };
     imgPreview.style.display = '';
     placeholderText.style.display = 'none';
     document.getElementById('video').style.display = 'none';
@@ -174,6 +196,8 @@ openCamBtn.addEventListener('click', async () => {
         closeCamBtn.style.display = '';
         placeholderText.style.display = 'none';
         imgPreview.style.display = 'none';
+        currentImageWidth = 640;
+        currentImageHeight = 480;
     } catch (e) {
         responseEl.textContent = 'Camera access denied or not available';
     }
