@@ -31,7 +31,10 @@
     
     <div style="margin-top:1.5em;">
         <label for="message">Prompt:</label>
-        <textarea id="message" name="message" style="width:640px; height:120px; padding:8px; font-family:monospace;">Point to no more than 10 items in the image. The label returned should be an identifying name for the object detected. The answer should follow the json format: [{"point": [y, x], "label": <label1>}, ...].</textarea>
+        <textarea id="message" name="message" style="width:640px; height:120px; padding:8px; font-family:monospace;">Point to no more than 10 items in the image. 
+The label returned should be an identifying name for the object detected. 
+The answer should follow the json format: [{"point": [y, x], "label": <label1>}, ...].
+The points are in [y, x] format normalized to 0-1000.</textarea>
         <button id="sendBtn" style="display:block; margin-top:0.5em;">Send to Gemini</button>
     </div>
     
