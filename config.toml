@@ -1,0 +1,13 @@
+active_model = "gemini" # can be "gemini" or "qwen"
+
+[gemini]
+model = "gemini-robotics-er-1.5-preview"
+api_base_url = "https://generativelanguage.googleapis.com"
+api_version = "v1beta"
+temperature = 0.5
+thinking_budget = 0
+
+[qwen]
+model = "qwen3-vl:8b"
+api_url = "http://100.83.119.157:8884/api/generate"
+stream = false

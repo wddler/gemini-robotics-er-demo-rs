@@ -1,3 +1,4 @@
+use crate::Config;
 use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -27,15 +28,17 @@ async fn index() -> impl Responder {
     }
 }
 
-#[post("/send")]
-async fn send(req: web::Json<SendRequest>) -> impl Responder {
+async fn send_gemini(req: web::Json<SendRequest>, config: &Config) -> HttpResponse {
     let api_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
     if api_key.is_empty() {
         return HttpResponse::BadRequest().body("GEMINI_API_KEY environment variable not set");
     }
 
     let client = reqwest::Client::new();
-    let gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-robotics-er-1.5-preview:generateContent";
+    let gemini_url = format!(
+        "{}/{}/models/{}:generateContent",
+        config.gemini.api_base_url, config.gemini.api_version, config.gemini.model
+    );
 
     let gemini_request = json!({
         "contents": [
@@ -54,15 +57,15 @@ async fn send(req: web::Json<SendRequest>) -> impl Responder {
             }
         ],
         "generationConfig": {
-            "temperature": 0.5,
+            "temperature": config.gemini.temperature,
             "thinkingConfig": {
-                "thinkingBudget": 0
+                "thinkingBudget": config.gemini.thinking_budget
             }
         }
     });
 
     match client
-        .post(gemini_url)
+        .post(&gemini_url)
         .query(&[("key", api_key)])
         .json(&gemini_request)
         .send()
@@ -93,6 +96,75 @@ async fn send(req: web::Json<SendRequest>) -> impl Responder {
             println!("API error: {}", e);
             HttpResponse::InternalServerError().body(format!("Failed to call API: {}", e))
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct QwenRequest<'a> {
+    model: &'a str,
+    prompt: &'a str,
+    stream: bool,
+    images: Vec<&'a str>,
+}
+
+async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse {
+    let client = reqwest::Client::new();
+    let qwen_url = &config.qwen.api_url;
+
+    let qwen_request = QwenRequest {
+        model: &config.qwen.model,
+        prompt: &req.prompt,
+        stream: config.qwen.stream,
+        images: vec![&req.image_base64],
+    };
+
+    match client
+        .post(qwen_url)
+        .json(&qwen_request)
+        .send()
+        .await
+    {
+        Ok(resp) => match resp.json::<serde_json::Value>().await {
+            Ok(body) => {
+                println!("Qwen response: {:?}", body);
+                if let Some(response_str) = body.get("response").and_then(|r| r.as_str()) {
+                    let json_part = if let Some(start) = response_str.find('[') {
+                        if let Some(end) = response_str.rfind(']') {
+                            &response_str[start..=end]
+                        } else {
+                            response_str
+                        }
+                    } else {
+                        response_str
+                    };
+
+                    if let Ok(mut parsed) = serde_json::from_str::<Vec<DetectionPoint>>(json_part) {
+                        // Qwen returns [x, y], but frontend expects [y, x]. Swap them.
+                        for p in &mut parsed {
+                            p.point.swap(0, 1);
+                        }
+                        return HttpResponse::Ok().json(parsed);
+                    }
+                    // If parsing fails, return the extracted or original string
+                    return HttpResponse::Ok().body(json_part.to_string());
+                }
+                HttpResponse::InternalServerError().body("No 'response' field in qwen output")
+            }
+            Err(e) => HttpResponse::InternalServerError().body(format!("Failed to parse qwen response as JSON: {}", e)),
+        },
+        Err(e) => {
+            println!("API error: {}", e);
+            HttpResponse::InternalServerError().body(format!("Failed to call API: {}", e))
+        }
+    }
+}
+
+#[post("/send")]
+async fn send(req: web::Json<SendRequest>, config: web::Data<Config>) -> impl Responder {
+    match config.active_model.as_str() {
+        "gemini" => send_gemini(req, config.get_ref()).await,
+        "qwen" => send_qwen(req, config.get_ref()).await,
+        _ => HttpResponse::InternalServerError().body(format!("Unknown model provider: {}", config.active_model)),
     }
 }
 
@@ -134,10 +206,12 @@ async fn upload(req: HttpRequest, body: web::Bytes) -> impl Responder {
     }
 }
 
-pub async fn run() -> std::io::Result<()> {
+pub async fn run(config: Config) -> std::io::Result<()> {
     println!("Starting server at http://127.0.0.1:8080");
-    HttpServer::new(|| {
+    let config_data = web::Data::new(config);
+    HttpServer::new(move || {
         App::new()
+            .app_data(config_data.clone())
             .service(index)
             .service(send)
             .service(upload)
