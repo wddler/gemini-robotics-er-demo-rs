@@ -1,4 +1,6 @@
-active_model = "gemini" # can be "gemini" or "qwen"
+active_model = "gemini"   # can be "gemini" or "qwen"
+server_host = "127.0.0.1"
+server_port = 8080
 
 [gemini]
 model = "gemini-robotics-er-1.5-preview"

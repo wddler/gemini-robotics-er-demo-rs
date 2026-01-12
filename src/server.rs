@@ -24,7 +24,10 @@ async fn index() -> impl Responder {
     let index_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("frontend/index.html");
     match fs::read_to_string(index_path) {
         Ok(body) => HttpResponse::Ok().content_type("text/html").body(body),
-        Err(e) => HttpResponse::NotFound().body(format!("404 Not Found: frontend/index.html not found ({})", e)),
+        Err(e) => HttpResponse::NotFound().body(format!(
+            "404 Not Found: frontend/index.html not found ({})",
+            e
+        )),
     }
 }
 
@@ -90,7 +93,9 @@ async fn send_gemini(req: web::Json<SendRequest>, config: &Config) -> HttpRespon
                 }
                 HttpResponse::InternalServerError().body("No text in response")
             }
-            Err(e) => HttpResponse::InternalServerError().body(format!("Failed to parse response: {}", e)),
+            Err(e) => {
+                HttpResponse::InternalServerError().body(format!("Failed to parse response: {}", e))
+            }
         },
         Err(e) => {
             println!("API error: {}", e);
@@ -118,12 +123,7 @@ async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse
         images: vec![&req.image_base64],
     };
 
-    match client
-        .post(qwen_url)
-        .json(&qwen_request)
-        .send()
-        .await
-    {
+    match client.post(qwen_url).json(&qwen_request).send().await {
         Ok(resp) => match resp.json::<serde_json::Value>().await {
             Ok(body) => {
                 println!("Qwen response: {:?}", body);
@@ -150,7 +150,8 @@ async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse
                 }
                 HttpResponse::InternalServerError().body("No 'response' field in qwen output")
             }
-            Err(e) => HttpResponse::InternalServerError().body(format!("Failed to parse qwen response as JSON: {}", e)),
+            Err(e) => HttpResponse::InternalServerError()
+                .body(format!("Failed to parse qwen response as JSON: {}", e)),
         },
         Err(e) => {
             println!("API error: {}", e);
@@ -164,7 +165,8 @@ async fn send(req: web::Json<SendRequest>, config: web::Data<Config>) -> impl Re
     match config.active_model.as_str() {
         "gemini" => send_gemini(req, config.get_ref()).await,
         "qwen" => send_qwen(req, config.get_ref()).await,
-        _ => HttpResponse::InternalServerError().body(format!("Unknown model provider: {}", config.active_model)),
+        _ => HttpResponse::InternalServerError()
+            .body(format!("Unknown model provider: {}", config.active_model)),
     }
 }
 
@@ -207,8 +209,14 @@ async fn upload(req: HttpRequest, body: web::Bytes) -> impl Responder {
 }
 
 pub async fn run(config: Config) -> std::io::Result<()> {
-    println!("Starting server at http://127.0.0.1:8080");
-    let config_data = web::Data::new(config);
+    println!(
+        "Starting server at http://{}:{}",
+        config.server_host, config.server_port
+    );
+    let config_data = web::Data::new(config.clone());
+    let bind_host = config.server_host.clone();
+    let bind_port = config.server_port;
+
     HttpServer::new(move || {
         App::new()
             .app_data(config_data.clone())
@@ -217,7 +225,7 @@ pub async fn run(config: Config) -> std::io::Result<()> {
             .service(upload)
             .service(actix_files::Files::new("/static", "frontend").show_files_listing())
     })
-        .bind(("127.0.0.1", 8080))?
-        .run()
-        .await
+    .bind((bind_host, bind_port))?
+    .run()
+    .await
 }

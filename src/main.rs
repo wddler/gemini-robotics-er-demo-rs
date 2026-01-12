@@ -22,6 +22,8 @@ pub struct QwenConfig {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub active_model: String,
+    pub server_host: String,
+    pub server_port: u16,
     pub gemini: GeminiConfig,
     pub qwen: QwenConfig,
 }
