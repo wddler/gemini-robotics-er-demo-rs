@@ -1,4 +1,4 @@
-active_model = "gemini"   # can be "gemini" or "qwen"
+active_model = "qwen"     # can be "gemini" or "qwen"
 server_host = "127.0.0.1"
 server_port = 8080
 
@@ -11,5 +11,4 @@ thinking_budget = 0
 
 [qwen]
 model = "qwen3-vl:8b"
-api_url = "http://100.83.119.157:8884/api/generate"
 stream = false

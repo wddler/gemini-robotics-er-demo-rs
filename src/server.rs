@@ -114,7 +114,17 @@ struct QwenRequest<'a> {
 
 async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse {
     let client = reqwest::Client::new();
-    let qwen_url = &config.qwen.api_url;
+    let qwen_url_config = config.qwen.api_url.clone();
+    let qwen_url_env = std::env::var("QWEN_API_URL").ok();
+
+    let qwen_url = match (qwen_url_config, qwen_url_env) {
+        (Some(url), _) => url,
+        (_, Some(url)) => url,
+        (None, None) => {
+            return HttpResponse::InternalServerError()
+                .body("Qwen API URL not found in config or QWEN_API_URL env var")
+        }
+    };
 
     let qwen_request = QwenRequest {
         model: &config.qwen.model,

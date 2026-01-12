@@ -15,7 +15,7 @@ pub struct GeminiConfig {
 #[derive(Clone, Debug, Deserialize)]
 pub struct QwenConfig {
     pub model: String,
-    pub api_url: String,
+    pub api_url: Option<String>,
     pub stream: bool,
 }
 
