@@ -13,7 +13,3 @@ There is an option to use a local model instead of GR-ER API because it has a li
 5. Click "Send".
 
 ![example](uploaded_images/example.png)
-
-ToDo:
-- [ ] Specify hostname and port for the web server in `config.toml`.
-- [ ] Specify ollama hostname and port in `config.toml`.
