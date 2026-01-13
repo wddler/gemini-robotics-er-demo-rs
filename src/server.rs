@@ -1,10 +1,11 @@
 use crate::Config;
 use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fs;
 use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Deserialize)]
 pub struct SendRequest {
@@ -43,6 +44,9 @@ async fn send_gemini(req: web::Json<SendRequest>, config: &Config) -> HttpRespon
         config.gemini.api_base_url, config.gemini.api_version, config.gemini.model
     );
 
+    info!("Sending request to Gemini model: {}", config.gemini.model);
+    let start_time = Instant::now();
+
     let gemini_request = json!({
         "contents": [
             {
@@ -76,7 +80,9 @@ async fn send_gemini(req: web::Json<SendRequest>, config: &Config) -> HttpRespon
     {
         Ok(resp) => match resp.json::<serde_json::Value>().await {
             Ok(body) => {
-                println!("Gemini response: {:?}", body);
+                let duration = start_time.elapsed();
+                debug!("Gemini response: {:?}", body);
+                info!("Received response from Gemini in {:?}", duration);
                 if let Some(text) = body
                     .get("candidates")
                     .and_then(|c| c.get(0))
@@ -87,6 +93,7 @@ async fn send_gemini(req: web::Json<SendRequest>, config: &Config) -> HttpRespon
                     .and_then(|t| t.as_str())
                 {
                     if let Ok(parsed) = serde_json::from_str::<Vec<DetectionPoint>>(text) {
+                        info!("Extracted detection points: {:?}", parsed);
                         return HttpResponse::Ok().json(parsed);
                     }
                     return HttpResponse::Ok().body(text.to_string());
@@ -98,7 +105,7 @@ async fn send_gemini(req: web::Json<SendRequest>, config: &Config) -> HttpRespon
             }
         },
         Err(e) => {
-            println!("API error: {}", e);
+            error!("API error: {}", e);
             HttpResponse::InternalServerError().body(format!("Failed to call API: {}", e))
         }
     }
@@ -133,10 +140,15 @@ async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse
         images: vec![&req.image_base64],
     };
 
+    info!("Sending request to Qwen model: {}", config.qwen.model);
+    let start_time = Instant::now();
+
     match client.post(qwen_url).json(&qwen_request).send().await {
         Ok(resp) => match resp.json::<serde_json::Value>().await {
             Ok(body) => {
-                println!("Qwen response: {:?}", body);
+                let duration = start_time.elapsed();
+                debug!("Qwen response: {:?}", body);
+                info!("Received response from Qwen in {:?}", duration);
                 if let Some(response_str) = body.get("response").and_then(|r| r.as_str()) {
                     let json_part = if let Some(start) = response_str.find('[') {
                         if let Some(end) = response_str.rfind(']') {
@@ -153,6 +165,7 @@ async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse
                         for p in &mut parsed {
                             p.point.swap(0, 1);
                         }
+                        info!("Extracted detection points: {:?}", parsed);
                         return HttpResponse::Ok().json(parsed);
                     }
                     // If parsing fails, return the extracted or original string
@@ -164,7 +177,7 @@ async fn send_qwen(req: web::Json<SendRequest>, config: &Config) -> HttpResponse
                 .body(format!("Failed to parse qwen response as JSON: {}", e)),
         },
         Err(e) => {
-            println!("API error: {}", e);
+            error!("API error: {}", e);
             HttpResponse::InternalServerError().body(format!("Failed to call API: {}", e))
         }
     }
@@ -211,7 +224,7 @@ async fn upload(req: HttpRequest, body: web::Bytes) -> impl Responder {
 
     match fs::write(&path, &body) {
         Ok(_) => {
-            println!("Saved uploaded file: {:?}", path);
+            info!("Saved uploaded file: {:?}", path);
             HttpResponse::Ok().body(format!("Saved {}", filename))
         }
         Err(e) => HttpResponse::InternalServerError().body(format!("Failed to save: {}", e)),
@@ -219,7 +232,7 @@ async fn upload(req: HttpRequest, body: web::Bytes) -> impl Responder {
 }
 
 pub async fn run(config: Config) -> std::io::Result<()> {
-    println!(
+    info!(
         "Starting server at http://{}:{}",
         config.server_host, config.server_port
     );
