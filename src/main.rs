@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::fs;
 
+mod logging;
 mod server;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -31,7 +32,7 @@ pub struct Config {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
-    env_logger::init();
+    logging::setup_logger().expect("Failed to initialize logger");
 
     let config_str = fs::read_to_string("config.toml").expect("Failed to read config.toml");
     let config: Config = toml::from_str(&config_str).expect("Failed to parse config.toml");
