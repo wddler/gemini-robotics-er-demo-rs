@@ -15,5 +15,4 @@ There is an option to use a local model instead of GR-ER API because it has a li
 ![example](uploaded_images/example.png)
 
 ToDo:
-- [ ] add logging (responce time)
 - add speech to text
