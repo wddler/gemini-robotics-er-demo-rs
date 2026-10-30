@@ -7,7 +7,7 @@ You need an `GEMINI_API_KEY` key that can be generated on the [Google AI Studio]
 There is an option to use a local model instead of GR-ER API because it has a limit of 20 requests per day as of January 2026. Qwen3-vl:8b with Ollama is used as an example. Specify it in the `config.toml` file.
 
 1. `cargo run` will start the web server.
-2. Open `http://127.0.0.1:8080` in your browser.
+2. In VS Code, forward port `8081` from the Ports panel, then open the forwarded address in your browser.
 3. Upload or capture an image.
 4. Write a prompt.
 5. Click "Send".
